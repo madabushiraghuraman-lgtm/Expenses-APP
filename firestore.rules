@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- HELPER FUNCTIONS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Helper to fetch user profiles dynamically
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserData(request.auth.uid).role == "super_admin";
+    }
+
+    function isAuditor() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserData(request.auth.uid).role == "auditor";
+    }
+
+    // ID Validation Helper
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User Model Schema Validator
+    function isValidUser(u) {
+      return u.userId is string && u.userId.size() <= 128 &&
+             u.name is string && u.name.size() <= 200 &&
+             u.phone is string && u.phone.size() <= 40 &&
+             u.role is string && (u.role == "employee" || u.role == "auditor" || u.role == "super_admin") &&
+             u.department is string && u.department.size() <= 50 &&
+             u.createdAt is string && u.createdAt.size() <= 100;
+    }
+
+    // Claim Model Schema Validator
+    function isValidClaim(c) {
+      return c.claimNumber is string && c.claimNumber.size() <= 100 &&
+             c.employeeUid is string && c.employeeUid.size() <= 128 &&
+             c.employeeName is string && c.employeeName.size() <= 200 &&
+             c.employeePhone is string && c.employeePhone.size() <= 50 &&
+             c.department is string && c.department.size() <= 60 &&
+             c.designation is string && c.designation.size() <= 100 &&
+             c.status is string && (c.status == "Pending" || c.status == "Approved" || c.status == "Rejected" || c.status == "Resubmitted") &&
+             c.tourStartDate is string && c.tourStartDate.size() <= 30 &&
+             c.tourEndDate is string && c.tourEndDate.size() <= 30 &&
+             c.advanceAmount is number && c.advanceAmount >= 0 &&
+             c.totalExpenseAmount is number && c.totalExpenseAmount >= 0 &&
+             c.finalBalance is number &&
+             c.narration is string && c.narration.size() <= 2000 &&
+             c.createdAt is string && c.createdAt.size() <= 100 &&
+             c.updatedAt is string && c.updatedAt.size() <= 100 &&
+             c.lineItems is list && c.lineItems.size() <= 50;
+    }
+
+    // Settings Model Schema Validator
+    function isValidSetting(s) {
+      return s.customCategories is list && s.customCategories.size() <= 30 &&
+             s.categoryRights is map &&
+             s.nextSerial is number && s.nextSerial >= 1;
+    }
+
+
+    // --- USERS COLLECTION RULES ---
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(userId) && (
+        (request.auth.uid == userId && isValidUser(incoming())) ||
+        isSuperAdmin()
+      );
+      allow delete: if isSignedIn() && isValidId(userId) && (
+        request.auth.uid == userId ||
+        isSuperAdmin()
+      );
+    }
+
+    // --- SETTINGS COLLECTION RULES ---
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(settingId) && isValidSetting(incoming());
+      allow delete: if isSignedIn() && isValidId(settingId) && isSuperAdmin();
+    }
+
+    // --- CLAIMS COLLECTION RULES ---
+    match /claims/{claimId} {
+      allow read: if isSignedIn() && isValidId(claimId) && (
+        resource.data.employeeUid == request.auth.uid ||
+        isAuditor() ||
+        isSuperAdmin()
+      );
+      
+      allow create: if isSignedIn() && isValidId(claimId) &&
+                    claimId == incoming().claimNumber &&
+                    (incoming().employeeUid == request.auth.uid || isSuperAdmin()) &&
+                    isValidClaim(incoming());
+
+      allow update: if isSignedIn() && isValidId(claimId) && isValidClaim(incoming()) && (
+        isSuperAdmin() ||
+        (isAuditor() && incoming().diff(existing()).affectedKeys().hasOnly(["status", "rejectionReason", "updatedAt"])) ||
+        (
+          existing().status != "Approved" &&
+          incoming().employeeUid == request.auth.uid &&
+          existing().employeeUid == request.auth.uid &&
+          (incoming().status == "Pending" || incoming().status == "Resubmitted")
+        )
+      );
+
+      allow delete: if isSignedIn() && isValidId(claimId) && (
+        isSuperAdmin() ||
+        resource.data.employeeUid == request.auth.uid
+      );
+    }
+  }
+}

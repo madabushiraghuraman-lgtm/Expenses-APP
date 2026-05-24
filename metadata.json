@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Travel Expenses App",
+  "description": "This helps the employee to claim the expenses from the organisation, where the employee has to submit all proofs of expenditure related to travel, logding, food and others. The app will have approval ssytem for each claims.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

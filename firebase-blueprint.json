@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the application with role-based access control.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique Firebase Authentication UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Mobile number verified via OTP."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["employee", "auditor", "super_admin"],
+          "description": "Role determining access to specific dashboards."
+        },
+        "department": {
+          "type": "string",
+          "enum": ["Sales", "IT", "HR", "Operations", "Finance", "Marketing"],
+          "description": "The sector or department staff belongs to."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user account was created."
+        }
+      },
+      "required": ["userId", "name", "phone", "role", "department", "createdAt"]
+    },
+    "Claim": {
+      "title": "Claim",
+      "description": "Represents a post-tour travel expense claim.",
+      "type": "object",
+      "properties": {
+        "claimNumber": {
+          "type": "string",
+          "description": "Unique auto-incremented tracking number with prefix e.g., KRPLTR01."
+        },
+        "employeeUid": {
+          "type": "string",
+          "description": "Firebase UID of the employee who submitted the claim."
+        },
+        "employeeName": {
+          "type": "string",
+          "description": "Name of the employee."
+        },
+        "employeePhone": {
+          "type": "string",
+          "description": "Verified phone number of the employee."
+        },
+        "department": {
+          "type": "string",
+          "description": "Department of the employee."
+        },
+        "designation": {
+          "type": "string",
+          "description": "Designation of the employee."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Pending", "Approved", "Rejected", "Resubmitted"],
+          "description": "Approval workflow state."
+        },
+        "tourStartDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of the official tour."
+        },
+        "tourEndDate": {
+          "type": "string",
+          "format": "date",
+          "description": "End date of the official tour."
+        },
+        "advanceAmount": {
+          "type": "number",
+          "description": "Cash advance given before start of tour."
+        },
+        "totalExpenseAmount": {
+          "type": "number",
+          "description": "Sum of all individual line item expenses."
+        },
+        "finalBalance": {
+          "type": "number",
+          "description": "Total Expenses Entered - Advance Amount Paid."
+        },
+        "narration": {
+          "type": "string",
+          "description": "General description or notes about the overall tour."
+        },
+        "rejectionReason": {
+          "type": "string",
+          "description": "Written reason by the Auditor Admin if the claim is rejected."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date claim was first submitted."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of latest modification."
+        },
+        "lineItems": {
+          "type": "array",
+          "description": "Line-by-line actual expense items."
+        }
+      },
+      "required": [
+        "claimNumber",
+        "employeeUid",
+        "employeeName",
+        "employeePhone",
+        "department",
+        "designation",
+        "status",
+        "tourStartDate",
+        "tourEndDate",
+        "advanceAmount",
+        "totalExpenseAmount",
+        "finalBalance",
+        "narration",
+        "createdAt",
+        "updatedAt",
+        "lineItems"
+      ]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global custom variables and settings.",
+      "type": "object",
+      "properties": {
+        "customCategories": {
+          "type": "array",
+          "description": "Custom expense variables added by Super Admin."
+        },
+        "categoryRights": {
+          "type": "object",
+          "description": "Mapping from custom category to list of departments that can see/use it."
+        },
+        "nextSerial": {
+          "type": "number",
+          "description": "The next value for auto-increment Claim serial number."
+        }
+      },
+      "required": ["customCategories", "categoryRights", "nextSerial"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store individual accounts and their core authorization details."
+    },
+    "/claims/{claimId}": {
+      "schema": "Claim",
+      "description": "Store tour travel expense claims along with workflow state."
+    },
+    "/settings/global": {
+      "schema": "Setting",
+      "description": "Global customization variables, permission rights, and increments tracker."
+    }
+  }
+}

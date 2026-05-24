@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif, "Space Grotesk", ui-sans-serif, system-ui;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --neon-cyan: #00f2ff;
+  --neon-emerald: #10b981;
+  --neon-magenta: #ec4899;
+  --bg-deep: #020617;
+}
+
+/* Custom Cyberpunk Text Shadows and Enhancements */
+.neon-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.7);
+}
+
+.neon-glow-magenta {
+  text-shadow: 0 0 10px rgba(236, 72, 153, 0.7);
+}
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+.neon-border-cyan {
+  border: 1px solid var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(0, 242, 255, 0.4);
+}
+
+.neon-border-magenta {
+  border: 1px solid var(--neon-magenta);
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
+}
+
+.status-pending {
+  color: var(--neon-cyan);
+  background: rgba(0, 242, 255, 0.1);
+  border: 1px solid var(--neon-cyan);
+}
+
+.status-approved {
+  color: var(--neon-emerald);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--neon-emerald);
+}
+
+.status-rejected {
+  color: var(--neon-magenta);
+  background: rgba(236, 72, 153, 0.1);
+  border: 1px solid var(--neon-magenta);
+}
+
+/* Glassmorphism background scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 255, 0.6);
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.9;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.7);
+  }
+}
+
+.ambient-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
