@@ -10,6 +10,7 @@ import {
   FileCheck2,
   CalendarDays,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 import { Claim, UserProfile } from "../types";
 import { dbBroker } from "../dbBroker";
@@ -20,6 +21,95 @@ interface EmployeePanelProps {
   claims: Claim[];
   onLogNewClaim: () => void;
   onEditClaim: (claim: Claim) => void;
+}
+
+function downloadClaimsExcel(claims: Claim[], currentUser: UserProfile) {
+  const headers = [
+    "Claim No.",
+    "Employee Name",
+    "Employee ID",
+    "Department",
+    "Designation",
+    "Tour Start Date",
+    "Tour End Date",
+    "Expense Date",
+    "Expense Category",
+    "Expense Narration",
+    "Expense Item Amount (INR)",
+    "Advance Cash Received (INR)",
+    "Claim Status",
+    "Final Balance (INR)",
+    "Proof URL Reference"
+  ];
+
+  const rows: string[][] = [];
+
+  claims.forEach((claim) => {
+    const isZeroAdvance = claim.advanceAmount === 0;
+    const advStr = isZeroAdvance ? "" : claim.advanceAmount.toString();
+    const finalBalStr = claim.finalBalance.toString();
+
+    if (!claim.lineItems || claim.lineItems.length === 0) {
+      rows.push([
+        claim.claimNumber,
+        claim.employeeName,
+        currentUser.employeeId || "",
+        claim.department,
+        claim.designation,
+        claim.tourStartDate,
+        claim.tourEndDate,
+        "N/A",
+        "N/A",
+        claim.narration,
+        "0.00",
+        advStr,
+        claim.status,
+        finalBalStr,
+        "No attachments"
+      ]);
+    } else {
+      claim.lineItems.forEach((item) => {
+        let fullRefUrl = "N/A";
+        if (item.proofUrl) {
+          const relative = getRelativeProofUrl(item.proofUrl);
+          fullRefUrl = relative.startsWith("http") ? relative : `${window.location.origin}${relative}`;
+        }
+        rows.push([
+          claim.claimNumber,
+          claim.employeeName,
+          currentUser.employeeId || "",
+          claim.department,
+          claim.designation,
+          claim.tourStartDate,
+          claim.tourEndDate,
+          item.expenseDate,
+          item.category,
+          item.narration,
+          item.amount.toFixed(2),
+          advStr,
+          claim.status,
+          finalBalStr,
+          fullRefUrl
+        ]);
+      });
+    }
+  });
+
+  const csvContent = [
+    headers.map(h => `"${h.replace(/"/g, '""')}"`).join(","),
+    ...rows.map(row => row.map(cell => `"${(cell || "").replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  const formattedDate = new Date().toISOString().split('T')[0];
+  link.setAttribute("href", url);
+  link.setAttribute("download", `KrystalRef_Accounts_Claims_${currentUser.name.trim().replace(/\s+/g, '_')}_${formattedDate}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 export default function EmployeePanel({
@@ -74,16 +164,27 @@ export default function EmployeePanel({
             Employee Deck: Expense Operations
           </h2>
           <p className="text-[10px] text-zinc-400 font-mono mt-0.5 uppercase font-semibold">
-            Logged-In Identity: {currentUser.name} {currentUser.employeeId ? `(ID: ${currentUser.employeeId})` : ""} | Rank: {currentUser.department} Division
+            Logged-In Identity: {currentUser.name} {currentUser.employeeId ? `(ID: ${currentUser.employeeId})` : ""} {currentUser.designation ? `| ${currentUser.designation}` : ""} | Rank: {currentUser.department} Division
           </p>
         </div>
 
-        <button
-          onClick={onLogNewClaim}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-400 hover:from-cyan-500 hover:to-cyan-300 text-black font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all hover:scale-105 active:scale-95 shadow shadow-cyan-950 duration-200"
-        >
-          <Plus className="w-4 h-4" /> Log new travel claim
-        </button>
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <button
+            onClick={() => downloadClaimsExcel(myClaims, currentUser)}
+            disabled={myClaims.length === 0}
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 border border-[#00f2ff]/30 hover:border-[#00f2ff]/60 text-zinc-300 text-xs font-mono uppercase tracking-widest rounded-xl transition-all duration-200 select-none"
+            title="Download past claims report formatted for accounting systems in Excel format"
+          >
+            <Download className="w-4 h-4 text-[#00f2ff]" /> Download Accounts Format (Excel)
+          </button>
+
+          <button
+            onClick={onLogNewClaim}
+            className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-400 hover:from-cyan-500 hover:to-cyan-300 text-black font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all hover:scale-105 active:scale-95 shadow shadow-cyan-950 duration-200"
+          >
+            <Plus className="w-4 h-4" /> Log new travel claim
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}

@@ -11,6 +11,8 @@ export interface UserProfile {
   createdAt: string;
   autoUnlock?: boolean;
   employeeId?: string;
+  designation?: string;
+  officeLocation?: string;
 }
 
 export interface ExpenseLineItem {

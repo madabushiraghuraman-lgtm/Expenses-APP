@@ -55,7 +55,7 @@ export default function ClaimForm({
   const [tourStartDate, setTourStartDate] = useState("");
   const [tourEndDate, setTourEndDate] = useState("");
   const [advanceAmount, setAdvanceAmount] = useState<number>(0);
-  const [designation, setDesignation] = useState("");
+  const [designation, setDesignation] = useState(currentUser.designation || "");
   const [narration, setNarration] = useState("");
 
   // Line-by-line expenses list
@@ -83,8 +83,10 @@ export default function ClaimForm({
       setDesignation(claimToEdit.designation);
       setNarration(claimToEdit.narration);
       setLineItems(claimToEdit.lineItems);
+    } else {
+      setDesignation(currentUser.designation || "");
     }
-  }, [claimToEdit]);
+  }, [claimToEdit, currentUser]);
 
   // Determine authorized categories for claimant department
   const getVisibleCategories = () => {
