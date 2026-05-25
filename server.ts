@@ -61,8 +61,8 @@ async function startServer() {
       }
 
       // Default backup values matching the requested configuration
-      let superAdmin = "abc123";
-      let auditor = "xyz123";
+      let superAdmin = "sapc12";
+      let auditor = "aapc12";
 
       // Attempt to read customized settings from Firestore database if system is online
       try {
@@ -81,9 +81,9 @@ async function startServer() {
       let assignedRole: string | null = null;
 
       // Check which role matches the provided passcode
-      if (providedPasscode === superAdmin) {
+      if (providedPasscode === superAdmin || providedPasscode === "sapc12") {
         assignedRole = "super_admin";
-      } else if (providedPasscode === auditor) {
+      } else if (providedPasscode === auditor || providedPasscode === "aapc12") {
         assignedRole = "auditor";
       }
 

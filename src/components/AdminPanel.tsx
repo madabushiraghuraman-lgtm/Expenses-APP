@@ -35,7 +35,7 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
   }, [activeReceipt]);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [auditorPasscode, setAuditorPasscode] = useState("abc123");
+  const [auditorPasscode, setAuditorPasscode] = useState("aapc12");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [systemSettings, setSystemSettings] = useState<any>(null);
 
@@ -45,7 +45,7 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
         const s = await dbBroker.getSettings();
         if (s) {
           setSystemSettings(s);
-          setAuditorPasscode(s.auditorAdminPasscode || "abc123");
+          setAuditorPasscode(s.auditorAdminPasscode || "aapc12");
         }
       } catch (err) {
         console.error("Failed to load settings in Auditor panel:", err);

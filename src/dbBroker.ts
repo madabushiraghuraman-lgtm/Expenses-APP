@@ -30,8 +30,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   },
   nextSerial: 1,
   globalPasscode: "123456",
-  superAdminPasscode: "abc123",
-  auditorAdminPasscode: "xyz123",
+  superAdminPasscode: "sapc12",
+  auditorAdminPasscode: "aapc12",
   departments: ["IT", "HR", "Operations", "Finance", "Marketing"],
 };
 
@@ -417,10 +417,10 @@ export const dbBroker = {
           data.globalPasscode = "123456";
         }
         if (!data.superAdminPasscode) {
-          data.superAdminPasscode = "abc123";
+          data.superAdminPasscode = "sapc12";
         }
         if (!data.auditorAdminPasscode) {
-          data.auditorAdminPasscode = "xyz123";
+          data.auditorAdminPasscode = "aapc12";
         }
         localStorage.setItem("krystal_cached_settings", JSON.stringify(data));
         return data;

@@ -38,8 +38,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
     globalPasscode: "123456",
   });
 
-  const [superAdminPasscodeVal, setSuperAdminPasscodeVal] = useState("abc123");
-  const [auditorAdminPasscodeVal, setAuditorAdminPasscodeVal] = useState("abc123");
+  const [superAdminPasscodeVal, setSuperAdminPasscodeVal] = useState("sapc12");
+  const [auditorAdminPasscodeVal, setAuditorAdminPasscodeVal] = useState("aapc12");
   const [passcodeSuccess, setPasscodeSuccess] = useState(false);
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
         const s = await dbBroker.getSettings();
         if (s) {
           setCurrentSettings(s);
-          setSuperAdminPasscodeVal(s.superAdminPasscode || "abc123");
-          setAuditorAdminPasscodeVal(s.auditorAdminPasscode || "xyz123");
+          setSuperAdminPasscodeVal(s.superAdminPasscode || "sapc12");
+          setAuditorAdminPasscodeVal(s.auditorAdminPasscode || "aapc12");
           const depts = s.departments || ["IT", "HR", "Operations", "Finance", "Marketing"];
           setUserForm(prev => ({
             ...prev,
