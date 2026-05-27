@@ -148,6 +148,7 @@ async function startServer() {
           const { createClient } = await import("@supabase/supabase-js");
           const supabase = createClient(supabaseUrl, supabaseAnonKey);
           
+          // Attempt the relational query layout requested under user's initial spec
           const { data, error: dbError } = await supabase
             .from("claims")
             .update({ status: action, admin_notes: adminComment })
@@ -155,13 +156,27 @@ async function startServer() {
             .select("*, employee(email, name)");
           
           if (dbError) {
-            console.error("[Review API] Supabase update error:", dbError);
+            console.warn("[Review API] Supabase relational select failed (likely due to missing 'employee' table relations). Retrying with flat query fallback...", dbError.message || JSON.stringify(dbError));
+            
+            // Fallback update to independent flat claims structure
+            const { data: flatData, error: flatError } = await supabase
+              .from("claims")
+              .update({ status: action, admin_notes: adminComment })
+              .eq("id", claimId)
+              .select();
+            
+            if (flatError) {
+              console.warn("[Review API] Supabase backup update also failed. Setup check: ensure 'claims' table is created with 'id', 'status', 'admin_notes' structures. Error detail:", flatError.message || JSON.stringify(flatError));
+            } else {
+              supabaseUpdated = true;
+              console.log("[Review API] Supabase flat entry updated successfully:", flatData);
+            }
           } else {
             supabaseUpdated = true;
-            console.log("[Review API] Supabase entry updated successfully:", data);
+            console.log("[Review API] Supabase relational entry updated successfully:", data);
           }
-        } catch (supaErr) {
-          console.error("[Review API] Failed during Supabase execution:", supaErr);
+        } catch (supaErr: any) {
+          console.error("[Review API] System failure during Supabase database link step:", supaErr.message || supaErr);
         }
       }
 

@@ -107,6 +107,7 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
   const [userForm, setUserForm] = useState({
     name: "",
     phone: "",
+    email: "",
     role: "employee" as UserRole,
     department: "IT" as UserProfile["department"],
   });
@@ -189,6 +190,7 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
         userId: editingUserId || `uid-${Date.now()}`,
         name: userForm.name.trim(),
         phone: userForm.phone.trim(),
+        email: userForm.email.trim(),
         role: userForm.role,
         department: userForm.department,
         createdAt: new Date().toISOString(),
@@ -198,7 +200,7 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
       setEditingUserId(null);
       setIsAddingUser(false);
       const defaultDept = (currentSettings.departments && currentSettings.departments[0]) || "IT";
-      setUserForm({ name: "", phone: "", role: "employee", department: defaultDept as any });
+      setUserForm({ name: "", phone: "", email: "", role: "employee", department: defaultDept as any });
       onRefreshAll();
     } catch (err) {
       console.error("Save user failed:", err);
@@ -211,6 +213,7 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
     setUserForm({
       name: usr.name,
       phone: usr.phone,
+      email: usr.email || "",
       role: usr.role,
       department: usr.department,
     });
@@ -407,6 +410,19 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
                 </div>
               </div>
 
+              <div>
+                <label className="block text-[10px] font-mono text-gray-400 uppercase mb-1">
+                  Email Address (Verification Notifications Target)
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. employee@yourdomain.com"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  className="w-full px-3 py-1.5 text-xs bg-zinc-950 border border-neutral-700 rounded text-white font-mono"
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-mono text-gray-400 uppercase mb-1">Company department Role</label>
@@ -456,11 +472,12 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
 
           {/* User Directory Table layout */}
           <div className="overflow-x-auto rounded-xl border border-zinc-900 scrollbar-thin">
-            <table className="w-full min-w-[650px] text-left border-collapse text-xs">
+            <table className="w-full min-w-[750px] text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-zinc-950/80 text-zinc-500 font-mono">
                   <th className="p-3">Identity Name</th>
                   <th className="p-3">Verification Link (Phone)</th>
+                  <th className="p-3">Email Address</th>
                   <th className="p-3">Division</th>
                   <th className="p-3">Clearance Level</th>
                   <th className="p-3 text-right">Actions</th>
@@ -471,6 +488,7 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
                   <tr key={u.userId} className="hover:bg-zinc-900/30 text-zinc-300">
                     <td className="p-3 font-semibold text-white">{u.name}</td>
                     <td className="p-3 font-mono">{u.phone}</td>
+                    <td className="p-3 font-mono text-zinc-400">{u.email || "—"}</td>
                     <td className="p-3">{u.department}</td>
                     <td className="p-3">
                       <span
