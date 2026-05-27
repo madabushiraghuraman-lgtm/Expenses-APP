@@ -112,6 +112,111 @@ async function startServer() {
     }
   });
 
+  // API Endpoint triggered when Admin hits Approve or Reject
+  app.patch("/api/claims/:claimId/review", async (req, res) => {
+    const { claimId } = req.params;
+    const { action, adminComment, trip_title, amount, employeeEmail, employeeName } = req.body; // action: Approved or Rejected
+
+    try {
+      // 1. Fetch current settings from Firestore to check if "autoTriggerEmail" and "senderEmail" are Customized
+      let autoTriggerEmail = true;
+      let senderEmail = "Krystal Path Travel <expenses@yourdomain.com>";
+      try {
+        const globalRef = doc(firestoreDb, "settings", "global");
+        const globalSnap = await getDoc(globalRef);
+        if (globalSnap && globalSnap.exists()) {
+          const settingsData = globalSnap.data();
+          if (settingsData.autoTriggerEmail !== undefined) {
+            autoTriggerEmail = !!settingsData.autoTriggerEmail;
+          }
+          if (settingsData.senderEmail) {
+            senderEmail = String(settingsData.senderEmail);
+          }
+        }
+      } catch (dbErr) {
+        console.warn("[Review API] Could not load settings from Firestore: ", dbErr);
+      }
+
+      // 2. Smart Hybrid Check: Supabase integration
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+      let supabaseUpdated = false;
+
+      if (supabaseUrl && supabaseAnonKey) {
+        try {
+          // Lazy initialization of Supabase to prevent crashing on missing keys
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(supabaseUrl, supabaseAnonKey);
+          
+          const { data, error: dbError } = await supabase
+            .from("claims")
+            .update({ status: action, admin_notes: adminComment })
+            .eq("id", claimId)
+            .select("*, employee(email, name)");
+          
+          if (dbError) {
+            console.error("[Review API] Supabase update error:", dbError);
+          } else {
+            supabaseUpdated = true;
+            console.log("[Review API] Supabase entry updated successfully:", data);
+          }
+        } catch (supaErr) {
+          console.error("[Review API] Failed during Supabase execution:", supaErr);
+        }
+      }
+
+      // 3. Email trigger via Resend
+      const resendApiKey = process.env.RESEND_API_KEY;
+      let emailStatus = "not trigger settings disabled";
+
+      if (autoTriggerEmail) {
+        if (resendApiKey) {
+          try {
+            const { Resend } = await import("resend");
+            const resend = new Resend(resendApiKey);
+
+            const emailPayload = {
+              from: senderEmail,
+              to: employeeEmail || "employee@krystalpath.com",
+              subject: `Travel Expense Claim ${action}: ${trip_title || claimId}`,
+              html: `
+                <h3>Hello ${employeeName || "Employee"},</h3>
+                <p>Your travel expense claim for <strong>${trip_title || claimId}</strong> totaling <strong>INR ${amount || "0"}</strong> has been reviewed.</p>
+                <p><strong>Status:</strong> ${action}</p>
+                <p><strong>Admin Remarks:</strong> ${adminComment || 'None provided.'}</p>
+                <br/>
+                <p>Log into the Krystal Path app to view details.</p>
+              `
+            };
+
+            await resend.emails.send(emailPayload);
+            emailStatus = `sent via Resend to ${employeeEmail}`;
+          } catch (resendErr: any) {
+            console.error("[Review API] Resend email dispatch failed:", resendErr);
+            emailStatus = `failed sending email due to error: ${resendErr.message || resendErr}`;
+          }
+        } else {
+          console.warn("[Review API] RESEND_API_KEY is missing. Simulating Resend mail transmission.");
+          emailStatus = `simulated (missing RESEND_API_KEY) to ${employeeEmail}`;
+        }
+      } else {
+        emailStatus = "disabled by Super Admin configuration";
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Claim ${claimId} reviewed successfully. Status set to ${action}.`,
+        supabaseUpdated,
+        emailStatus,
+        senderEmailUsed: senderEmail
+      });
+
+    } catch (error: any) {
+      console.error("[Review API] System error in review endpoint:", error);
+      return res.status(500).json({ error: "Failed to process approval workflow." });
+    }
+  });
+
   // Health and verification check route
   app.get("/api/health", (req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });

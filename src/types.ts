@@ -57,4 +57,6 @@ export interface SystemSettings {
   superAdminPasscode?: string;
   auditorAdminPasscode?: string;
   departments?: string[];
+  autoTriggerEmail?: boolean;
+  senderEmail?: string;
 }

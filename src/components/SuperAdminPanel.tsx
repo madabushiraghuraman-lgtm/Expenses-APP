@@ -40,6 +40,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
 
   const [superAdminPasscodeVal, setSuperAdminPasscodeVal] = useState("sapc12");
   const [auditorAdminPasscodeVal, setAuditorAdminPasscodeVal] = useState("aapc12");
+  const [autoTriggerEmailVal, setAutoTriggerEmailVal] = useState(true);
+  const [senderEmailVal, setSenderEmailVal] = useState("Krystal Path Travel <expenses@yourdomain.com>");
   const [passcodeSuccess, setPasscodeSuccess] = useState(false);
 
   useEffect(() => {
@@ -50,6 +52,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
           setCurrentSettings(s);
           setSuperAdminPasscodeVal(s.superAdminPasscode || "sapc12");
           setAuditorAdminPasscodeVal(s.auditorAdminPasscode || "aapc12");
+          setAutoTriggerEmailVal(s.autoTriggerEmail !== false);
+          setSenderEmailVal(s.senderEmail || "Krystal Path Travel <expenses@yourdomain.com>");
           const depts = s.departments || ["IT", "HR", "Operations", "Finance", "Marketing"];
           setUserForm(prev => ({
             ...prev,
@@ -69,11 +73,17 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
       alert("Passcodes cannot be empty.");
       return;
     }
+    if (!senderEmailVal.trim()) {
+      alert("Sender email cannot be empty.");
+      return;
+    }
     try {
       const updatedSettings: SystemSettings = {
         ...currentSettings,
         superAdminPasscode: superAdminPasscodeVal.trim(),
         auditorAdminPasscode: auditorAdminPasscodeVal.trim(),
+        autoTriggerEmail: autoTriggerEmailVal,
+        senderEmail: senderEmailVal.trim(),
       };
       await dbBroker.saveSettings(updatedSettings);
       setCurrentSettings(updatedSettings);
@@ -641,14 +651,14 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
             </div>
           </div>
 
-          {/* Customized Gateway Passcodes Card */}
+          {/* Customized Gateway Passcodes & Resend Email Customization Card */}
           <div className="border-t border-white/5 pt-6 space-y-4">
             <div>
               <h3 className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-widest border-b border-white/10 pb-2 flex items-center gap-1.5 neon-glow-cyan">
-                <Settings2 className="w-4 h-4 text-[#00f2ff]" /> Gateway Access Passcodes
+                <Settings2 className="w-4 h-4 text-[#00f2ff]" /> System Gateways & Email Settings
               </h3>
               <p className="text-[10px] text-zinc-400 mt-1">
-                Configure the gateways used to prevent unauthorized entries into administrative decks.
+                Configure passcodes and automatically triggered email notifications sent to employees via Resend.
               </p>
             </div>
 
@@ -681,16 +691,59 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
                 />
               </div>
 
+              <div className="border-t border-white/5 pt-3 space-y-3">
+                <div className="flex items-center justify-between p-2 rounded bg-zinc-950 border border-zinc-900">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-mono text-slate-200 uppercase font-bold tracking-wide">
+                      Automatically trigger the email notification
+                    </span>
+                    <span className="text-[9px] text-zinc-500 font-mono">
+                      Dispatches email automatically using Resend to employees during audit review.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAutoTriggerEmailVal(!autoTriggerEmailVal)}
+                    className={`shrink-0 w-11 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out focus:outline-none ${
+                      autoTriggerEmailVal ? "bg-cyan-500" : "bg-neutral-800"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full bg-black transition-transform duration-200 ease-in-out ${
+                        autoTriggerEmailVal ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">
+                    Custom Triggering Email ID (Sender)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Krystal Path <expenses@yourdomain.com>"
+                    value={senderEmailVal}
+                    onChange={(e) => setSenderEmailVal(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-zinc-950 border border-neutral-700 rounded text-white font-mono tracking-wider focus:outline-none focus:border-cyan-400"
+                  />
+                  <p className="text-[9px] text-zinc-500 font-mono mt-1">
+                    Configure the authenticated sender address domain registered in your Resend dashboard.
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 text-black font-extrabold uppercase text-[10px] tracking-widest rounded-lg transition-all"
               >
-                Save Settings Passcodes
+                Save System & Email Settings
               </button>
 
               {passcodeSuccess && (
                 <div className="text-[10px] font-mono text-emerald-400 text-center animate-pulse">
-                  ✓ ADMINISTRATIVE GATEWAYS UPDATED IN FIREBASE
+                  ✓ ADMINISTRATIVE GATEWAYS & EMAIL SERVICES HARDENED IN FIREBASE
                 </div>
               )}
             </form>

@@ -33,6 +33,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   superAdminPasscode: "sapc12",
   auditorAdminPasscode: "aapc12",
   departments: ["IT", "HR", "Operations", "Finance", "Marketing"],
+  autoTriggerEmail: true,
+  senderEmail: "Krystal Path Travel <expenses@yourdomain.com>",
 };
 
 const DEFAULT_CLAIMS = (empUid: string): Claim[] => [
@@ -471,6 +473,12 @@ export const dbBroker = {
         }
         if (!data.auditorAdminPasscode) {
           data.auditorAdminPasscode = "aapc12";
+        }
+        if (data.autoTriggerEmail === undefined) {
+          data.autoTriggerEmail = true;
+        }
+        if (!data.senderEmail) {
+          data.senderEmail = "Krystal Path Travel <expenses@yourdomain.com>";
         }
         localStorage.setItem("krystal_cached_settings", JSON.stringify(data));
         return data;
