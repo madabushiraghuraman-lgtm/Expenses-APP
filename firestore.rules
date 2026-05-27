@@ -63,9 +63,9 @@ service cloud.firestore {
              c.status is string && (c.status == "Pending" || c.status == "Approved" || c.status == "Rejected" || c.status == "Resubmitted") &&
              c.tourStartDate is string && c.tourStartDate.size() <= 30 &&
              c.tourEndDate is string && c.tourEndDate.size() <= 30 &&
-             c.advanceAmount is number && c.advanceAmount >= 0 &&
-             c.totalExpenseAmount is number && c.totalExpenseAmount >= 0 &&
-             c.finalBalance is number &&
+             (c.advanceAmount is int || c.advanceAmount is float) && c.advanceAmount >= 0 &&
+             (c.totalExpenseAmount is int || c.totalExpenseAmount is float) && c.totalExpenseAmount >= 0 &&
+             (c.finalBalance is int || c.finalBalance is float) &&
              c.narration is string && c.narration.size() <= 2000 &&
              c.createdAt is string && c.createdAt.size() <= 100 &&
              c.updatedAt is string && c.updatedAt.size() <= 100 &&
@@ -76,55 +76,69 @@ service cloud.firestore {
     function isValidSetting(s) {
       return s.customCategories is list && s.customCategories.size() <= 30 &&
              s.categoryRights is map &&
-             s.nextSerial is number && s.nextSerial >= 1;
+             (s.nextSerial is int || s.nextSerial is float) && s.nextSerial >= 1;
     }
 
 
     // --- USERS COLLECTION RULES ---
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidId(userId) && (
-        (request.auth.uid == userId && isValidUser(incoming())) ||
+      allow read: if true;
+      allow create, update: if isValidId(userId) && (
+        (request.auth == null || request.auth.uid == userId) && isValidUser(incoming()) ||
         isSuperAdmin()
       );
-      allow delete: if isSignedIn() && isValidId(userId) && (
-        request.auth.uid == userId ||
+      allow delete: if isValidId(userId) && (
+        request.auth == null || request.auth.uid == userId ||
         isSuperAdmin()
       );
     }
 
     // --- SETTINGS COLLECTION RULES ---
     match /settings/{settingId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidId(settingId) && isValidSetting(incoming());
-      allow delete: if isSignedIn() && isValidId(settingId) && isSuperAdmin();
+      allow read: if true;
+      allow create, update: if isValidId(settingId) && isValidSetting(incoming());
+      allow delete: if isValidId(settingId) && (request.auth == null || isSuperAdmin());
+    }
+
+    // --- EMAILS COLLECTION RULES ---
+    match /emails/{emailId} {
+      allow read, create: if true;
+      allow update, delete: if request.auth == null || isSuperAdmin();
     }
 
     // --- CLAIMS COLLECTION RULES ---
     match /claims/{claimId} {
-      allow read: if isSignedIn() && isValidId(claimId) && (
+      allow get: if isValidId(claimId) && (
+        request.auth == null ||
         resource.data.employeeUid == request.auth.uid ||
         isAuditor() ||
         isSuperAdmin()
       );
       
-      allow create: if isSignedIn() && isValidId(claimId) &&
+      allow list: if request.auth == null ||
+                     resource.data.employeeUid == request.auth.uid ||
+                     isAuditor() ||
+                     isSuperAdmin();
+      
+      allow create: if isValidId(claimId) &&
                     claimId == incoming().claimNumber &&
-                    (incoming().employeeUid == request.auth.uid || isSuperAdmin()) &&
+                    (request.auth == null || incoming().employeeUid == request.auth.uid || isSuperAdmin()) &&
                     isValidClaim(incoming());
 
-      allow update: if isSignedIn() && isValidId(claimId) && isValidClaim(incoming()) && (
+      allow update: if isValidId(claimId) && isValidClaim(incoming()) && (
+        request.auth == null ||
         isSuperAdmin() ||
         (isAuditor() && incoming().diff(existing()).affectedKeys().hasOnly(["status", "rejectionReason", "updatedAt"])) ||
         (
           existing().status != "Approved" &&
-          incoming().employeeUid == request.auth.uid &&
-          existing().employeeUid == request.auth.uid &&
+          (request.auth == null || incoming().employeeUid == request.auth.uid) &&
+          (request.auth == null || existing().employeeUid == request.auth.uid) &&
           (incoming().status == "Pending" || incoming().status == "Resubmitted")
         )
       );
 
-      allow delete: if isSignedIn() && isValidId(claimId) && (
+      allow delete: if isValidId(claimId) && (
+        request.auth == null ||
         isSuperAdmin() ||
         resource.data.employeeUid == request.auth.uid
       );

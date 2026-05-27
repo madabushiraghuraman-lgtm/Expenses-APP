@@ -13,6 +13,8 @@ import {
   ClipboardCheck,
   Settings,
   Lock,
+  Mail,
+  CheckCircle2,
 } from "lucide-react";
 import { Claim, ExpenseLineItem } from "../types";
 import { dbBroker } from "../dbBroker";
@@ -29,6 +31,9 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
   const [isRejecting, setIsRejecting] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<{ url: string; name: string } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [rejectingItemId, setRejectingItemId] = useState<string | null>(null);
+  const [itemRejectionReason, setItemRejectionReason] = useState("");
 
   useEffect(() => {
     setZoomLevel(1);
@@ -93,7 +98,8 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
     try {
       const updatedLineItems = selectedClaim.lineItems.map((item) => {
         if (item.id === itemId) {
-          return { ...item, status };
+          const reason = status === "Rejected" ? item.rejectionReason : "";
+          return { ...item, status, rejectionReason: reason };
         }
         return item;
       });
@@ -107,6 +113,44 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
       onRefreshClaims();
     } catch (e) {
       console.error("Failed to update line item status:", e);
+    }
+  };
+
+  const handleRejectLineItemSubmit = async (itemId: string, reasonText: string) => {
+    if (!selectedClaim) return;
+    const trimmed = reasonText.trim();
+    if (!trimmed) {
+      alert("Please specify a genuine reason outlining the issue with this receipt.");
+      return;
+    }
+    try {
+      const updatedLineItems = selectedClaim.lineItems.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, status: "Rejected" as const, rejectionReason: trimmed };
+        }
+        return item;
+      });
+
+      const targetItem = selectedClaim.lineItems.find(it => it.id === itemId);
+      const overallReason = `Rejected Log Line item [Code Category: ${targetItem?.category || "Unknown"}]: ${trimmed}`;
+
+      const updated: Claim = {
+        ...selectedClaim,
+        status: "Rejected",
+        rejectionReason: overallReason,
+        lineItems: updatedLineItems,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await dbBroker.saveClaim(updated);
+      setSelectedClaim(updated);
+      setRejectingItemId(null);
+      setItemRejectionReason("");
+      onRefreshClaims();
+
+      await sendEmailForClaim(updated, "Rejected", overallReason);
+    } catch (e) {
+      console.error("Failed to submit line item rejection:", e);
     }
   };
 
@@ -195,7 +239,58 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
     document.body.removeChild(link);
   };
 
+  const sendEmailForClaim = async (claim: Claim, status: "Approved" | "Rejected", notesReason?: string) => {
+    try {
+      const users = await dbBroker.getUsers();
+      const employeeProfile = users.find(
+        (u) =>
+          u.userId === claim.employeeUid ||
+          u.name.trim().toLowerCase() === claim.employeeName.trim().toLowerCase()
+      );
+      
+      const employeeEmail = employeeProfile?.email || `${claim.employeeName.toLowerCase().replace(/\s+/g, ".")}@krystalpath.com`;
+      const currentReason = notesReason || claim.rejectionReason || "";
+      
+      const subject = status === "Approved"
+        ? `[Krystal Path] Claim APPROVED - REF: ${claim.claimNumber}`
+        : `[Krystal Path] Claim REJECTED [Action Required] - REF: ${claim.claimNumber}`;
+
+      const body = status === "Approved"
+        ? `Dear ${claim.employeeName},\n\nWe are pleased to inform you that your travel claim "${claim.claimNumber}" has been Approved by the Auditor Admin.\n\nDetails:\n- Tour Schedule: ${claim.tourStartDate} to ${claim.tourEndDate}\n- Total Claimed Amount: INR ${claim.totalExpenseAmount.toFixed(2)}\n- Approved Payout/Reimbursement: INR ${claim.finalBalance.toFixed(2)}\n\nThe approved payout has been queued for immediate disbursement.\n\nSincerely,\nAuditor Accounts Desk\nKrystal Path Financials`
+        : `Dear ${claim.employeeName},\n\nYour travel claim "${claim.claimNumber}" has been Rejected by the Auditor Admin.\n\nFollowing reasons for rejection:\n"${currentReason}"\n\nAction Needed:\nPlease check the feedback instructions above. You are requested to log back into the Krystal Path portal, edit / correct the rejected claim as requested, and resubmit the claim with the necessary adjustments for audit processing.\n\nSincerely,\nAuditor Accounts Desk\nKrystal Path Financials`;
+
+      const emailObj = {
+        id: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        to: employeeEmail,
+        toName: claim.employeeName,
+        subject,
+        body,
+        claimNumber: claim.claimNumber,
+        status,
+        sentAt: new Date().toISOString(),
+      };
+
+      await dbBroker.sendEmail(emailObj);
+      setEmailNotice(`📧 MAIL SENT: Confirmation email was dispatched to "${employeeEmail}" for Claim ${claim.claimNumber}!`);
+      setTimeout(() => setEmailNotice(null), 5500);
+    } catch (err) {
+      console.error("Failed to generate or persist simulated email dispatch:", err);
+    }
+  };
+
   const handleApprove = async (claim: Claim) => {
+    const hasRejected = claim.lineItems.some((it) => it.status === "Rejected");
+    const hasPending = claim.lineItems.some((it) => it.status !== "Approved" && it.status !== "Rejected");
+
+    if (hasRejected) {
+      alert("Cannot approve a claim with rejected line items. Please ask the employee to correct the ledger or adjust line item status.");
+      return;
+    }
+    if (hasPending) {
+      alert("Please audit (Approve or Reject) all individual expense line items before final signoff.");
+      return;
+    }
+
     try {
       const updated: Claim = {
         ...claim,
@@ -209,6 +304,7 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
       setIsRejecting(false);
       setActiveReceipt(null);
       onRefreshClaims();
+      await sendEmailForClaim(updated, "Approved");
     } catch (e) {
       console.error("Failed to approve claim:", e);
     }
@@ -235,10 +331,12 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
 
       await dbBroker.saveClaim(updated);
       setSelectedClaim(null);
+      const tempReason = rejectionReason.trim();
       setRejectionReason("");
       setIsRejecting(false);
       setActiveReceipt(null);
       onRefreshClaims();
+      await sendEmailForClaim(updated, "Rejected", tempReason);
     } catch (e) {
       console.error("Failed to reject claim:", e);
     }
@@ -318,7 +416,31 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 relative">
+      {/* Floating email notification dispatch toast */}
+      {emailNotice && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm p-4 bg-zinc-950 border-2 border-emerald-500 rounded-xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-lg text-emerald-400">
+            <Mail className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-grow space-y-1">
+            <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+              Mail Dispatch Center
+            </span>
+            <p className="text-xs text-white leading-relaxed font-sans">{emailNotice}</p>
+            <p className="text-[9px] text-zinc-500 font-mono uppercase">
+              Simulated SMTP Outbound Status: OK
+            </p>
+          </div>
+          <button 
+            onClick={() => setEmailNotice(null)}
+            className="text-zinc-500 hover:text-white text-xs font-mono p-1 leading-none self-start"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Title block */}
       <div className="glass-panel p-5 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -573,92 +695,150 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
                     return (
                       <div
                         key={item.id}
-                        className={`w-full p-3 rounded-xl border transition-all text-xs flex justify-between items-center ${
+                        className={`w-full p-3 rounded-xl border transition-all text-xs flex flex-col space-y-2.5 ${
                           isActive
                             ? "bg-zinc-900 border-pink-400/60 neon-border-pink"
                             : "bg-zinc-900/30 border-zinc-900 hover:border-zinc-800"
                         }`}
                       >
-                        <div 
-                          className="space-y-1.5 flex-1 pr-3 cursor-pointer"
-                          onClick={() =>
-                            setActiveReceipt(item.proofUrl ? { url: item.proofUrl, name: item.proofName } : null)
-                          }
-                        >
-                          <div className="flex items-center gap-2 flex-wrap text-zinc-300 mb-1.5">
-                            <span className="font-mono text-cyan-300 font-bold uppercase">{item.category}</span>
-                            <span className="text-[10px] text-zinc-500 font-mono">{item.expenseDate}</span>
-                            {item.status === "Approved" ? (
-                              <span className="px-1.5 py-0.5 text-[8.5px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 rounded uppercase font-bold tracking-wide">
-                                ✓ Approved Bill
-                              </span>
-                            ) : item.status === "Rejected" ? (
-                              <span className="px-1.5 py-0.5 text-[8.5px] font-mono bg-pink-950/40 text-pink-400 border border-pink-500/30 rounded uppercase font-bold tracking-wide">
-                                ✗ Rejected Bill
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 text-[8.5px] font-mono bg-yellow-950/30 text-yellow-500 border border-yellow-800/20 rounded uppercase font-bold tracking-wide">
-                                Pending Audit
-                              </span>
+                        <div className="flex justify-between items-center w-full">
+                          <div 
+                            className="space-y-1.5 flex-1 pr-3 cursor-pointer"
+                            onClick={() =>
+                              setActiveReceipt(item.proofUrl ? { url: item.proofUrl, name: item.proofName } : null)
+                            }
+                          >
+                            <div className="flex items-center gap-2 flex-wrap text-zinc-300 mb-1.5">
+                              <span className="font-mono text-cyan-300 font-bold uppercase">{item.category}</span>
+                              <span className="text-[10px] text-zinc-500 font-mono">{item.expenseDate}</span>
+                              {item.status === "Approved" ? (
+                                <span className="px-1.5 py-0.5 text-[8.5px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 rounded uppercase font-bold tracking-wide">
+                                  ✓ Approved Bill
+                                </span>
+                              ) : item.status === "Rejected" ? (
+                                <span className="px-1.5 py-0.5 text-[8.5px] font-mono bg-pink-950/40 text-pink-400 border border-pink-500/30 rounded uppercase font-bold tracking-wide">
+                                  ✗ Rejected Bill
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 text-[8.13px] font-mono bg-yellow-950/30 text-yellow-500 border border-yellow-800/20 rounded uppercase font-bold tracking-wide">
+                                  Pending Audit
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-zinc-400 text-[11px] leading-tight font-sans italic">
+                              "{item.narration}"
+                            </p>
+                            {outside && (
+                              <div className="py-0.5 px-2 bg-pink-950/30 border border-pink-500/30 rounded text-[9px] text-pink-400 font-mono flex items-center gap-1 w-max mt-1">
+                                <ShieldAlert className="w-3.5 h-3.5 shrink-0 animate-ping" />
+                                <span>OUTSIDE TOUR bounds of the employee!</span>
+                              </div>
                             )}
                           </div>
-                          <p className="text-zinc-400 text-[11px] leading-tight font-sans italic">
-                            "{item.narration}"
-                          </p>
-                          {outside && (
-                            <div className="py-0.5 px-2 bg-pink-950/30 border border-pink-500/30 rounded text-[9px] text-pink-400 font-mono flex items-center gap-1 w-max mt-1">
-                              <ShieldAlert className="w-3.5 h-3.5 shrink-0 animate-ping" />
-                              <span>OUTSIDE TOUR bounds of the employee!</span>
+
+                          <div className="text-right flex flex-col items-end gap-1.5 shrink-0 font-sans">
+                            <div
+                              className="cursor-pointer select-none"
+                              onClick={() => {
+                                if (item.proofUrl) {
+                                  setActiveReceipt({ url: item.proofUrl, name: item.proofName });
+                                  window.open(getRelativeProofUrl(item.proofUrl), "_blank");
+                                }
+                              }}
+                            >
+                              <span className="font-mono font-bold text-white block text-sm">
+                                ₹{item.amount.toFixed(2)}
+                              </span>
+                              <span className="text-[9px] font-mono text-purple-400 underline block text-right hover:text-purple-300">
+                                Verify receipt ↗
+                              </span>
                             </div>
-                          )}
+                            
+                            {/* Inner Action Bar for specific line approval */}
+                            <div className="flex items-center gap-1 mt-1 bg-slate-950/60 p-1 rounded-lg border border-white/5">
+                              <button
+                                type="button"
+                                onClick={() => handleLineItemStatus(item.id, "Approved")}
+                                title="Approve this single expenditure bill"
+                                className={`p-1 rounded transition-all ${
+                                  item.status === "Approved"
+                                    ? "bg-emerald-500 text-black"
+                                    : "text-zinc-500 hover:text-emerald-400 hover:bg-emerald-950/30"
+                                }`}
+                              >
+                                <FileCheck2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejectingItemId(item.id);
+                                  setItemRejectionReason(item.rejectionReason || "");
+                                }}
+                                title="Reject this single expenditure bill"
+                                className={`p-1 rounded transition-all ${
+                                  item.status === "Rejected"
+                                    ? "bg-pink-600 text-black"
+                                    : "text-zinc-500 hover:text-pink-400 hover:bg-pink-950/30"
+                                }`}
+                              >
+                                <FileX2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="text-right flex flex-col items-end gap-1.5 shrink-0 font-sans">
-                          <div
-                            className="cursor-pointer select-none"
-                            onClick={() => {
-                              if (item.proofUrl) {
-                                setActiveReceipt({ url: item.proofUrl, name: item.proofName });
-                                window.open(getRelativeProofUrl(item.proofUrl), "_blank");
-                              }
-                            }}
-                          >
-                            <span className="font-mono font-bold text-white block text-sm">
-                              ₹{item.amount.toFixed(2)}
+                        {/* Inline Rejection details input */}
+                        {rejectingItemId === item.id && (
+                          <div className="mt-1 p-2.5 bg-pink-950/20 border border-pink-500/25 rounded-lg space-y-2 animate-fade-in block w-full">
+                            <span className="block text-[10px] font-mono text-pink-400 uppercase tracking-wider font-semibold">
+                              Specify reason for rejecting this {item.category} expense:
                             </span>
-                            <span className="text-[9px] font-mono text-purple-400 underline block text-right hover:text-purple-300">
-                              Verify receipt ↗
-                            </span>
+                            <div className="flex gap-2 w-full">
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Ineligible bill date, illegible text, wrong category..."
+                                value={itemRejectionReason}
+                                onChange={(e) => setItemRejectionReason(e.target.value)}
+                                className="flex-1 px-2.5 py-1.5 text-xs bg-zinc-950 border border-neutral-800 rounded text-white font-sans focus:outline-none focus:ring-1 focus:ring-pink-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRejectLineItemSubmit(item.id, itemRejectionReason)}
+                                className="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-black font-extrabold text-[10px] tracking-wider rounded uppercase transition-colors shrink-0 font-mono"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejectingItemId(null);
+                                  setItemRejectionReason("");
+                                }}
+                                className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-350 font-bold text-[10px] tracking-wider rounded uppercase transition-colors shrink-0 font-mono border border-white/5"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
-                          
-                          {/* Inner Action Bar for specific line approval */}
-                          <div className="flex items-center gap-1 mt-1 bg-slate-950/60 p-1 rounded-lg border border-white/5">
+                        )}
+
+                        {/* Display existing rejection reason if rejected */}
+                        {item.status === "Rejected" && item.rejectionReason && rejectingItemId !== item.id && (
+                          <div className="mt-1 p-2 bg-pink-950/10 border border-pink-950/20 rounded-lg text-[11px] text-pink-300 font-mono italic flex items-center justify-between">
+                            <span>✗ Reason: "{item.rejectionReason}"</span>
                             <button
                               type="button"
-                              onClick={() => handleLineItemStatus(item.id, "Approved")}
-                              title="Approve this single expenditure bill"
-                              className={`p-1 rounded transition-all ${
-                                item.status === "Approved"
-                                  ? "bg-emerald-500 text-black"
-                                  : "text-zinc-500 hover:text-emerald-400 hover:bg-emerald-950/30"
-                              }`}
+                              onClick={() => {
+                                setRejectingItemId(item.id);
+                                setItemRejectionReason(item.rejectionReason || "");
+                              }}
+                              className="text-[9px] underline text-pink-400 hover:text-pink-300 ml-2 italic shrink-0"
                             >
-                              <FileCheck2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleLineItemStatus(item.id, "Rejected")}
-                              title="Reject this single expenditure bill"
-                              className={`p-1 rounded transition-all ${
-                                item.status === "Rejected"
-                                  ? "bg-pink-600 text-black"
-                                  : "text-zinc-500 hover:text-pink-400 hover:bg-pink-950/30"
-                              }`}
-                            >
-                              <FileX2 className="w-3.5 h-3.5" />
+                              Edit directive
                             </button>
                           </div>
-                        </div>
+                        )}
                       </div>
                     );
                   })}

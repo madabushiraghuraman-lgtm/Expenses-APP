@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   TrendingUp,
@@ -11,6 +11,7 @@ import {
   CalendarDays,
   ShieldCheck,
   Download,
+  Mail,
 } from "lucide-react";
 import { Claim, UserProfile } from "../types";
 import { dbBroker } from "../dbBroker";
@@ -119,6 +120,22 @@ export default function EmployeePanel({
   onEditClaim,
 }: EmployeePanelProps) {
   const [expandedClaimNo, setExpandedClaimNo] = useState<string | null>(null);
+  const [userEmails, setUserEmails] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadEmails = async () => {
+      const emailAddr = currentUser.email || `${currentUser.name.toLowerCase().replace(/\s+/g, ".")}@krystalpath.com`;
+      try {
+        const mails = await dbBroker.getEmailsForUser(emailAddr);
+        // Sort newest first
+        mails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+        setUserEmails(mails);
+      } catch (err) {
+        console.error("Failed to load user emails inside EmployeePanel:", err);
+      }
+    };
+    loadEmails();
+  }, [currentUser.email, currentUser.name, claims]);
 
   // Filter claims to only show those belonging to this user
   const myClaims = claims.filter(
@@ -233,6 +250,64 @@ export default function EmployeePanel({
             <FolderOpen className="w-6 h-6" />
           </div>
         </div>
+      </div>
+
+      {/* Corporate Communications Inbox */}
+      <div className="glass-panel p-5 rounded-2xl space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-cyan-950/40 border border-cyan-500/35 text-cyan-400 rounded-lg">
+              <Mail className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-widest text-[#00f2ff] drop-shadow neon-glow-cyan">
+                Inbox: Auditor Mailers & Alerts
+              </h4>
+              <p className="text-[10px] font-mono text-zinc-400 uppercase">
+                Official communication logs dispatched to: {currentUser.email || "N/A"}
+              </p>
+            </div>
+          </div>
+          <span className="text-[9px] font-mono bg-zinc-900 border border-zinc-805 px-2 py-0.5 rounded text-zinc-500">
+            SECURE SMTP fallback-buffer
+          </span>
+        </div>
+
+        {userEmails.length === 0 ? (
+          <div className="text-center py-6 text-xs text-zinc-650 font-mono uppercase">
+            ✉️ No official status letters or mailers received.
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+            {userEmails.map((email: any) => (
+              <div 
+                key={email.id} 
+                className={`p-3 rounded-xl border text-xs space-y-2 ${
+                  email.status === "Approved" 
+                    ? "bg-emerald-950/10 border-emerald-500/20" 
+                    : "bg-red-950/10 border-red-500/20"
+                }`}
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-1.5 flex-wrap gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded ${
+                      email.status === "Approved" ? "bg-emerald-950 border border-emerald-500 text-emerald-400 animate-pulse" : "bg-red-950 border border-red-500 text-red-100"
+                    }`}>
+                      {email.status === "Approved" ? "APPROVED LETTER" : "REJECTION LETTER"}
+                    </span>
+                    <span className="font-mono text-zinc-400 text-[10px]">CLAIM: {email.claimNumber}</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-zinc-500">
+                    Received: {new Date(email.sentAt).toLocaleTimeString()} | {new Date(email.sentAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="text-zinc-300 font-sans leading-relaxed whitespace-pre-line text-xs pl-1">
+                  {email.body}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Claims List Section with graceful mobile collapse and information density card layout */}
@@ -361,7 +436,14 @@ export default function EmployeePanel({
                               <tr key={item.id} className="hover:bg-zinc-900/20 text-zinc-300">
                                 <td className="p-3 font-mono text-cyan-300">{item.category}</td>
                                 <td className="p-3 font-mono">{item.expenseDate}</td>
-                                <td className="p-3 text-zinc-400">{item.narration}</td>
+                                <td className="p-3 text-zinc-400">
+                                  <div>{item.narration}</div>
+                                  {item.status === "Rejected" && item.rejectionReason && (
+                                    <div className="mt-1.5 p-2 bg-pink-950/20 border border-pink-500/20 rounded text-[11px] text-pink-400 font-mono italic max-w-sm">
+                                      ✗ Auditor directive: "{item.rejectionReason}"
+                                    </div>
+                                  )}
+                                </td>
                                 <td className="p-3">
                                   {item.proofUrl ? (
                                     <a

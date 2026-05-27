@@ -589,6 +589,11 @@ export default function ClaimForm({
                         <tr key={item.id} className="hover:bg-zinc-900/40 text-zinc-200">
                           <td className="py-2.5">
                             <span className="font-mono text-cyan-400">{item.category}</span>
+                            {item.status === "Rejected" && (
+                              <span className="text-[8px] bg-pink-950/40 border border-pink-500/30 text-pink-400 px-1 rounded block w-max mt-0.5 font-bold uppercase tracking-wide">
+                                Rejected
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5">
                             <span className={outside ? "text-pink-400 font-mono" : "font-mono"}>
@@ -601,7 +606,14 @@ export default function ClaimForm({
                             )}
                           </td>
                           <td className="py-2.5 font-mono font-bold">₹{item.amount.toFixed(2)}</td>
-                          <td className="py-2.5 text-zinc-400">{item.narration}</td>
+                          <td className="py-2.5 text-zinc-400">
+                            <div>{item.narration}</div>
+                            {item.status === "Rejected" && item.rejectionReason && (
+                              <div className="mt-1 text-[10px] text-pink-400 font-mono italic bg-pink-950/20 border border-pink-500/10 p-1 rounded max-w-xs">
+                                ✗ Reason: {item.rejectionReason}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-2.5">
                             {item.proofUrl ? (
                               <a

@@ -17,14 +17,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   // Guided wizard states for first-time login onboarding
   const [isRegistering, setIsRegistering] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1);
   const [registeredData, setRegisteredData] = useState({
     name: "",
     employeeId: "",
     department: "IT",
     designation: "",
     phone: "",
-    officeLocation: "",
+    email: "",
   });
 
   // States for the new Passcode Authenticator box
@@ -66,8 +65,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setStatusMessage(null);
 
     const cleanName = name.trim();
+    const cleanEmpId = employeeId.trim();
+
     if (!cleanName || cleanName.length < 2) {
       setError("INVALID INPUT: Please provide a valid employee full name.");
+      return;
+    }
+    if (!cleanEmpId) {
+      setError("INVALID INPUT: Please provide a valid Employee ID.");
       return;
     }
 
@@ -76,13 +81,20 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setTimeout(async () => {
       try {
         const activeUid = await dbBroker.ensureAuthenticated();
-        const existingUser = await dbBroker.findUserByNameAndDept(cleanName, department);
+        
+        // Check if there is an existing employee matching Name and Employee ID!
+        let existingUser = await dbBroker.findUserByNameAndEmpId(cleanName, cleanEmpId);
+        
+        // Check department backup match to support old user records
+        if (!existingUser) {
+          existingUser = await dbBroker.findUserByNameAndDept(cleanName, department);
+        }
 
         if (existingUser) {
           const syncedUser: UserProfile = {
             ...existingUser,
             userId: activeUid,
-            employeeId: employeeId.trim() || existingUser.employeeId || "",
+            employeeId: cleanEmpId || existingUser.employeeId || "",
           };
           await dbBroker.saveUser(syncedUser);
           
@@ -98,17 +110,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           setStatusMessage(`Welcome back, ${syncedUser.name}! Session authorized.`);
           setTimeout(() => onLoginSuccess(syncedUser), 300);
         } else {
-          // Trigger onboarding wizard
+          // Trigger onboarding setup form
           setIsLoading(false);
           setRegisteredData({
             name: cleanName,
-            employeeId: employeeId.trim(),
+            employeeId: cleanEmpId,
             department: department,
             designation: localStorage.getItem("krystal_last_designation") || "System Associate",
-            phone: "+919876543210",
-            officeLocation: "Mumbai Hub",
+            phone: "",
+            email: "",
           });
-          setWizardStep(1);
           setIsRegistering(true);
         }
       } catch (err: any) {
@@ -128,8 +139,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       setIsLoading(false);
       return;
     }
-    if (!registeredData.employeeId.trim()) {
-      setError("An employee ID number is required.");
+    if (!registeredData.phone.trim()) {
+      setError("Phone Number is required.");
+      setIsLoading(false);
+      return;
+    }
+    if (!registeredData.email.trim()) {
+      setError("Email ID is required.");
       setIsLoading(false);
       return;
     }
@@ -139,12 +155,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       const newProfile: UserProfile = {
         userId: activeUid,
         name: registeredData.name,
-        phone: registeredData.phone,
+        phone: registeredData.phone.trim(),
+        email: registeredData.email.trim(),
         role: "employee",
         department: registeredData.department,
         employeeId: registeredData.employeeId.trim(),
         designation: registeredData.designation.trim(),
-        officeLocation: registeredData.officeLocation.trim(),
         createdAt: new Date().toISOString(),
       };
 
@@ -301,19 +317,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               <UserPlus className="w-6 h-6" />
             </div>
             <h2 className="text-xl font-bold uppercase tracking-widest text-[#00f2ff]">
-              Guided Onboarding
+              One-Time Setup
             </h2>
             <p className="text-[10px] text-zinc-400 font-mono mt-1 uppercase">
-              Step {wizardStep} of 3: Essential Profile Assembly
+              Register Employee Profile (First-Time Only)
             </p>
-            
-            {/* Progress bar */}
-            <div className="w-full bg-zinc-900 h-1.5 rounded-full mt-4 overflow-hidden border border-white/5">
-              <div 
-                className="bg-gradient-to-r from-cyan-500 to-pink-500 h-full transition-all duration-300"
-                style={{ width: `${(wizardStep / 3) * 100}%` }}
-              />
-            </div>
           </div>
 
           {error && (
@@ -323,176 +331,113 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             </div>
           )}
 
-          <form onSubmit={wizardStep === 3 ? handleCompleteRegistration : (e) => { e.preventDefault(); setWizardStep(prev => prev + 1); }} className="space-y-5">
-            {wizardStep === 1 && (
-              <div className="space-y-4 animate-in slide-in-from-right-3 duration-250">
-                <div className="p-3 bg-cyan-950/10 border border-cyan-800/10 rounded-lg">
-                  <span className="text-[10px] font-mono text-cyan-400 block uppercase font-bold mb-1">Onboarding Name</span>
-                  <span className="text-sm text-white font-semibold">{registeredData.name}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-cyan-300 uppercase">
-                    Corporate Designation / Role
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Award className="h-5 w-5 text-zinc-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Senior Associate, General Manager"
-                      value={registeredData.designation}
-                      onChange={(e) => setRegisteredData({ ...registeredData, designation: e.target.value })}
-                      className="block w-full pl-10 pr-3 py-3 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-all text-sm font-semibold"
-                    />
-                  </div>
-                  <p className="text-[9px] text-zinc-500 font-mono leading-tight uppercase">
-                    * Saved inside database to auto-populate designation for every travel claim draft!
-                  </p>
-                </div>
-
-                {/* Instant suggested designations helical pills */}
-                <div>
-                  <span className="text-[9px] font-mono text-zinc-500 block uppercase mb-1.5 font-bold">Recommended Matches:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["System Analyst", "Managing Consultant", "Operations Executive", "Finance Manager", "Strategic Specialist"].map(p => (
-                      <button
-                        type="button"
-                        key={p}
-                        onClick={() => setRegisteredData({ ...registeredData, designation: p })}
-                        className="text-[9.5px] px-2 py-1 bg-zinc-900 hover:bg-cyan-950/20 text-zinc-400 hover:text-cyan-300 border border-zinc-850 hover:border-cyan-800/40 rounded transition-all font-mono uppercase"
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          <form onSubmit={handleCompleteRegistration} className="space-y-4">
+            {/* Read-only Pre-populated Info */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 bg-zinc-950/50 border border-zinc-800/60 rounded-lg">
+                <span className="text-[9px] font-mono text-zinc-500 block uppercase font-bold">FullName</span>
+                <span className="text-xs text-white font-semibold truncate block">{registeredData.name}</span>
               </div>
-            )}
-
-            {wizardStep === 2 && (
-              <div className="space-y-4 animate-in slide-in-from-right-3 duration-250">
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-cyan-300 uppercase">
-                    Employee ID Number
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Cpu className="h-5 w-5 text-zinc-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. EMP1042"
-                      value={registeredData.employeeId}
-                      onChange={(e) => setRegisteredData({ ...registeredData, employeeId: e.target.value })}
-                      className="block w-full pl-10 pr-3 py-3 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-mono placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-all text-sm uppercase"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-cyan-300 uppercase">
-                    Assigned Corporate Division
-                  </label>
-                  <select
-                    value={registeredData.department}
-                    onChange={(e) => setRegisteredData({ ...registeredData, department: e.target.value })}
-                    className="block w-full px-3 py-3 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-all text-sm font-semibold"
-                  >
-                    {(liveSettings?.departments || ["IT", "HR", "Operations", "Finance", "Marketing"]).map((dept: string) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[9px] text-zinc-500 font-mono uppercase leading-tight">
-                    Ensures correct accounting classification mapping.
-                  </p>
-                </div>
+              <div className="p-2.5 bg-zinc-950/50 border border-zinc-800/60 rounded-lg">
+                <span className="text-[9px] font-mono text-zinc-500 block uppercase font-bold">Employee ID</span>
+                <span className="text-xs text-cyan-400 font-mono font-bold truncate block">{registeredData.employeeId}</span>
               </div>
-            )}
+            </div>
 
-            {wizardStep === 3 && (
-              <div className="space-y-4 animate-in slide-in-from-right-3 duration-250">
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-cyan-300 uppercase">
-                    Corporate Phone Number
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-zinc-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. +91 98765 43210"
-                      value={registeredData.phone}
-                      onChange={(e) => setRegisteredData({ ...registeredData, phone: e.target.value })}
-                      className="block w-full pl-10 pr-3 py-3 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-all text-sm font-semibold"
-                    />
-                  </div>
-                </div>
+            {/* Department Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-mono text-cyan-300 uppercase">
+                Division / Department
+              </label>
+              <select
+                value={registeredData.department}
+                onChange={(e) => setRegisteredData({ ...registeredData, department: e.target.value })}
+                className="block w-full px-3 py-2 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm font-semibold"
+              >
+                {(liveSettings?.departments || ["IT", "HR", "Operations", "Finance", "Marketing"]).map((dept: string) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono text-cyan-300 uppercase">
-                    Base Office Location Hub
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <MapPin className="h-5 w-5 text-zinc-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Mumbai HQ, Delhi Branch, Bangalore"
-                      value={registeredData.officeLocation}
-                      onChange={(e) => setRegisteredData({ ...registeredData, officeLocation: e.target.value })}
-                      className="block w-full pl-10 pr-3 py-3 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-all text-sm font-semibold"
-                    />
-                  </div>
+            {/* Designation Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-mono text-cyan-300 uppercase">
+                Corporate Designation
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Award className="h-4 w-4 text-zinc-500" />
                 </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Senior Associate"
+                  value={registeredData.designation}
+                  onChange={(e) => setRegisteredData({ ...registeredData, designation: e.target.value })}
+                  className="block w-full pl-9 pr-3 py-2 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm font-semibold"
+                />
               </div>
-            )}
+            </div>
+
+            {/* Phone Number Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-mono text-cyan-300 uppercase">
+                Corporate Phone Number
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-4 w-4 text-zinc-500" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. +91 98765 43210"
+                  value={registeredData.phone}
+                  onChange={(e) => setRegisteredData({ ...registeredData, phone: e.target.value })}
+                  className="block w-full pl-9 pr-3 py-2 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm font-semibold"
+                />
+              </div>
+            </div>
+
+            {/* Email ID Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-mono text-cyan-300 uppercase">
+                Corporate Email ID
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Key className="h-4 w-4 text-zinc-500" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. employee@company.com"
+                  value={registeredData.email}
+                  onChange={(e) => setRegisteredData({ ...registeredData, email: e.target.value })}
+                  className="block w-full pl-9 pr-3 py-2 bg-zinc-900 border border-neutral-750 rounded-lg text-white font-sans placeholder-zinc-650 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm font-semibold"
+                />
+              </div>
+            </div>
 
             {/* Navigation Buttons */}
-            <div className="flex gap-2 justify-between pt-4 border-t border-white/5 animate-in fade-in">
-              {wizardStep > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setWizardStep(prev => prev - 1)}
-                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-mono text-xs uppercase tracking-wider rounded-lg transition-all flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-3 h-3" /> Back
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsRegistering(false)}
-                  className="px-4 py-2 text-zinc-500 hover:text-zinc-300 font-mono text-xs uppercase tracking-wider transition-all"
-                >
-                  Back to login
-                </button>
-              )}
-
-              {wizardStep < 3 ? (
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-zinc-800 hover:bg-zinc-750 border border-cyan-500/20 hover:border-cyan-500 text-cyan-400 font-mono text-xs uppercase tracking-wider rounded-lg transition-all flex items-center gap-1"
-                >
-                  Next <ArrowRight className="w-3 h-3" />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-black font-extrabold font-mono text-xs uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 shadow shadow-emerald-950"
-                >
-                  {isLoading ? "Provisioning..." : "Complete & Login ↗"}
-                </button>
-              )}
+            <div className="grid grid-cols-2 gap-2 pt-4 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setIsRegistering(false)}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 font-mono text-xs uppercase tracking-wider rounded-lg transition-all"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-black font-extrabold font-mono text-xs uppercase tracking-wider rounded-lg transition-all shadow shadow-emerald-950"
+              >
+                {isLoading ? "Saving..." : "Register Employee ↗"}
+              </button>
             </div>
           </form>
         </div>

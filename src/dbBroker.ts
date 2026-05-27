@@ -147,6 +147,7 @@ export const dbBroker = {
   // Seed default data if Firestore is empty
   async seedIfNeeded(activeUid: string): Promise<void> {
     try {
+      console.log("[SEEDING DEBUG] Checking if database is empty by fetching users...");
       const usersSnap = await withTimeout(getDocs(collection(db, "users")));
       if (usersSnap.empty) {
         // Create user matching current auth UID as Employee so evaluation flows cleanly on first load
@@ -158,18 +159,41 @@ export const dbBroker = {
           department: "IT",
           createdAt: new Date().toISOString(),
         };
-        await setDoc(doc(db, "users", activeUid), activeProfile);
+        console.log("[SEEDING DEBUG] Writing active profile user doc to /users/" + activeUid);
+        try {
+          await setDoc(doc(db, "users", activeUid), activeProfile);
+          console.log("[SEEDING DEBUG] /users/" + activeUid + " successfully written!");
+        } catch (e: any) {
+          console.error("[SEEDING DEBUG] /users write partition failed:", e);
+          throw e;
+        }
 
         // Seed default settings
-        await setDoc(doc(db, "settings", "global"), DEFAULT_SETTINGS);
+        console.log("[SEEDING DEBUG] Writing global settings to /settings/global");
+        try {
+          await setDoc(doc(db, "settings", "global"), DEFAULT_SETTINGS);
+          console.log("[SEEDING DEBUG] /settings/global successfully written!");
+        } catch (e: any) {
+          console.error("[SEEDING DEBUG] /settings write partition failed:", e);
+          throw e;
+        }
 
         // Seed default claims linked to the active user to make it instantly visible
         const seedClaims = DEFAULT_CLAIMS(activeUid);
+        console.log("[SEEDING DEBUG] Writing " + seedClaims.length + " default claims to /claims/...");
         for (const claim of seedClaims) {
-          await setDoc(doc(db, "claims", claim.claimNumber), claim);
+          try {
+            await setDoc(doc(db, "claims", claim.claimNumber), claim);
+            console.log("[SEEDING DEBUG] Claim " + claim.claimNumber + " successfully written!");
+          } catch (e: any) {
+            console.error("[SEEDING DEBUG] /claims/ write partition failed for " + claim.claimNumber + ":", e);
+            throw e;
+          }
         }
+      } else {
+        console.log("[SEEDING DEBUG] Database is not empty, skipping seed.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Database seeding issue:", err);
     }
   },
@@ -286,6 +310,32 @@ export const dbBroker = {
         try {
           const list: UserProfile[] = JSON.parse(cached);
           return list.find(u => u.name === name && u.department === department);
+        } catch {}
+      }
+      return undefined;
+    }
+  },
+
+  async findUserByNameAndEmpId(name: string, employeeId: string): Promise<UserProfile | undefined> {
+    try {
+      await this.ensureAuthenticated();
+      const q = query(
+        collection(db, "users"),
+        where("name", "==", name),
+        where("employeeId", "==", employeeId)
+      );
+      const snap = await withTimeout(getDocs(q));
+      if (!snap.empty) {
+        return snap.docs[0].data() as UserProfile;
+      }
+      return undefined;
+    } catch (err) {
+      console.warn("User lookup by name and employeeId failed, checking cache:", err);
+      const cached = localStorage.getItem("krystal_cached_users");
+      if (cached) {
+        try {
+          const list: UserProfile[] = JSON.parse(cached);
+          return list.find(u => u.name.toLowerCase() === name.toLowerCase() && u.employeeId === employeeId);
         } catch {}
       }
       return undefined;
@@ -449,6 +499,57 @@ export const dbBroker = {
       console.warn("Firestore saveSettings failed, updating local cache/state only:", err);
     } finally {
       localStorage.setItem("krystal_cached_settings", JSON.stringify(settings));
+    }
+  },
+
+  async sendEmail(email: {
+    id: string;
+    to: string;
+    toName: string;
+    subject: string;
+    body: string;
+    claimNumber: string;
+    status: string;
+    sentAt: string;
+  }): Promise<void> {
+    try {
+      await this.ensureAuthenticated();
+      await setDoc(doc(db, "emails", email.id), email);
+    } catch (e) {
+      console.warn("Saving email to Firestore failed, storing in fallback local cache:", e);
+    } finally {
+      const cached = localStorage.getItem("krystal_cached_emails");
+      let list: any[] = [];
+      if (cached) {
+        try { list = JSON.parse(cached); } catch {}
+      }
+      list.push(email);
+      localStorage.setItem("krystal_cached_emails", JSON.stringify(list));
+    }
+  },
+
+  async getEmailsForUser(emailAddress: string): Promise<any[]> {
+    try {
+      await this.ensureAuthenticated();
+      const snap = await withTimeout(getDocs(collection(db, "emails")));
+      const list: any[] = [];
+      snap.forEach((d) => {
+        const item = d.data();
+        if (item.to?.toLowerCase() === emailAddress.toLowerCase()) {
+          list.push(item);
+        }
+      });
+      return list;
+    } catch (e) {
+      console.warn("Fetching emails from Firestore failed, checking cached emails:", e);
+      const cached = localStorage.getItem("krystal_cached_emails");
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          return list.filter((m: any) => m.to?.toLowerCase() === emailAddress.toLowerCase());
+        } catch {}
+      }
+      return [];
     }
   },
 

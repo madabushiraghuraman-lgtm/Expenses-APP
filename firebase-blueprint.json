@@ -152,6 +152,47 @@
         }
       },
       "required": ["customCategories", "categoryRights", "nextSerial"]
+    },
+    "Email": {
+      "title": "Email",
+      "description": "Represents an outbound corporate notification alert sent to an employee.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the communication log."
+        },
+        "to": {
+          "type": "string",
+          "description": "Recipient email address."
+        },
+        "toName": {
+          "type": "string",
+          "description": "Recipient full name."
+        },
+        "subject": {
+          "type": "string",
+          "description": "Title/subject of the email message."
+        },
+        "body": {
+          "type": "string",
+          "description": "Symmetric text body of the letter."
+        },
+        "claimNumber": {
+          "type": "string",
+          "description": "Reference claim series number."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status state (Approved or Rejected)."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Outbox timestamp."
+        }
+      },
+      "required": ["id", "to", "toName", "subject", "body", "claimNumber", "status", "sentAt"]
     }
   },
   "firestore": {
@@ -166,6 +207,10 @@
     "/settings/global": {
       "schema": "Setting",
       "description": "Global customization variables, permission rights, and increments tracker."
+    },
+    "/emails/{emailId}": {
+      "schema": "Email",
+      "description": "Store mail dispatch notifications sent to employees upon status updates."
     }
   }
 }

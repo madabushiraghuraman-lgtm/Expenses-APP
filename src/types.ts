@@ -6,6 +6,7 @@ export interface UserProfile {
   userId: string;
   name: string;
   phone: string;
+  email?: string;
   role: UserRole;
   department: string;
   createdAt: string;
@@ -24,6 +25,7 @@ export interface ExpenseLineItem {
   proofUrl: string;
   proofName: string;
   status?: "Approved" | "Rejected" | "Pending";
+  rejectionReason?: string;
 }
 
 export interface Claim {
