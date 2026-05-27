@@ -419,8 +419,8 @@ export default function EmployeePanel({
                         Detailed Ledger Breakdowns
                       </h4>
 
-                      <div className="overflow-x-auto rounded-xl border border-zinc-900">
-                        <table className="w-full text-left border-collapse text-xs">
+                      <div className="overflow-x-auto rounded-xl border border-zinc-900 scrollbar-thin">
+                        <table className="w-full min-w-[650px] text-left border-collapse text-xs">
                           <thead>
                             <tr className="bg-zinc-950 text-zinc-500 font-mono">
                               <th className="p-3">Category</th>

@@ -570,8 +570,8 @@ export default function ClaimForm({
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full min-w-[650px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-zinc-950 text-zinc-500 font-mono">
                       <th className="pb-2">Category</th>

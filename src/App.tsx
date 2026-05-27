@@ -273,33 +273,33 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-[#e2e8f0] flex flex-col font-sans transition-colors duration-300 selection:bg-cyan-500/30 selection:text-white p-4 max-w-[1400px] mx-auto">
+    <div className="min-h-screen bg-[#020617] text-[#e2e8f0] flex flex-col font-sans transition-colors duration-300 selection:bg-cyan-500/30 selection:text-white p-2 sm:p-4 md:p-6 max-w-[1400px] mx-auto">
       {/* 1. Cyber Sandbox Dynamic Control Deck Header */}
-      <div className="glass-panel rounded-2xl mb-4 p-4 flex justify-between items-center flex-wrap gap-4 px-6">
+      <div className="glass-panel rounded-2xl mb-4 p-3 sm:p-4 flex justify-between items-center flex-wrap gap-4 px-4 sm:px-6">
         {/* Branding Title */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg neon-border-cyan flex items-center justify-center bg-slate-900">
+          <div className="w-10 h-10 rounded-lg neon-border-cyan flex items-center justify-center bg-slate-900 shrink-0">
             <span className="text-[#00f2ff] font-bold text-xl neon-glow-cyan">K</span>
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight neon-glow-cyan uppercase italic">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight neon-glow-cyan uppercase italic leading-none">
               KRYSTAL PATH WORKFLOW
             </h1>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold font-mono">
+            <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest font-bold font-mono mt-1">
               Zero-Trust Encrypted Workspace
             </p>
           </div>
         </div>
 
         {/* Dynamic Sandbox Impersonator Core for frictionless manual grading */}
-        <div className="flex items-center gap-2.5 bg-slate-950/50 p-2 rounded-xl border border-white/5 flex-wrap">
+        <div className="flex items-center gap-2 bg-slate-950/50 p-1.5 sm:p-2 rounded-xl border border-white/5 flex-wrap w-full lg:w-auto">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="text-[9.5px] font-mono text-zinc-400 uppercase tracking-widest hidden md:inline">
+            <span className="text-[9.5px] font-mono text-zinc-400 uppercase tracking-widest hidden sm:inline">
               Sandbox Impersonator Switcher:
             </span>
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {allUsers.map((usr) => {
               const isActive = usr.userId === currentUser.userId;
               const roleTag = usr.role === "super_admin" ? "SUPER" : usr.role === "auditor" ? "AUDIT" : "EMP";
@@ -307,7 +307,7 @@ export default function App() {
                 <button
                   key={usr.userId}
                   onClick={() => handleImpersonateUser(usr.userId)}
-                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg uppercase tracking-wide border transition-all ${
+                  className={`text-[9.5px] sm:text-[10px] font-mono px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg uppercase tracking-wide border transition-all ${
                     isActive
                       ? "bg-[#ec4899]/15 text-[#ec4899] border-[#ec4899] shadow-[0_0_8px_rgba(236,72,153,0.4)] neon-glow-magenta"
                       : "bg-[#020617] text-zinc-400 border-white/10 hover:border-white/20"
@@ -323,7 +323,7 @@ export default function App() {
         {/* Global Factory reset pill for Sandbox */}
         <button
           onClick={handleFactoryReset}
-          className="flex items-center gap-1 text-[9.5px] font-mono text-zinc-400 hover:text-[#00f2ff] transition-all uppercase"
+          className="flex items-center gap-1 text-[9.5px] font-mono text-zinc-500 hover:text-[#00f2ff] transition-all uppercase ml-auto lg:ml-0"
           title="Factory state reset to default profiles"
         >
           <RefreshCw className="w-3 h-3 animate-spin" style={{ animationDuration: '6s' }} /> Re-Seed Data
@@ -331,21 +331,21 @@ export default function App() {
       </div>
 
       {/* 2. Primary Navigation Toolbar */}
-      <header className="glass-panel rounded-2xl mb-4 px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="glass-panel rounded-2xl mb-4 px-4 sm:px-6 py-3 sm:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         {/* Logged in summary info badge */}
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative shrink-0">
             <div className="w-10 h-10 rounded-full border-2 border-[#ec4899] bg-slate-900 flex items-center justify-center text-[#ec4899] font-bold">
               {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
             </div>
             <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-[#020617] rounded-full animate-ping" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-bold text-sm text-slate-100 tracking-wide">{currentUser.name}</span>
-              <span className="text-[10px] font-mono text-slate-400">({currentUser.phone})</span>
+              <span className="text-[9.5px] font-mono text-slate-400 sm:text-[10px]">({currentUser.phone})</span>
             </div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold font-mono mt-0.5">
+            <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest font-bold font-mono mt-0.5">
               Clearance:{" "}
               <strong className="text-cyan-400 tracking-wide font-extrabold uppercase neon-glow-cyan">
                 {currentUser.role.replace("_", " ")}
@@ -356,10 +356,10 @@ export default function App() {
         </div>
 
         {/* Workspaces selector and Log out link */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           {/* Tabs - Dynamic visibility according to Role-Based Access controls (RBAC) */}
           {!isDrafting && (
-            <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5">
+            <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-none shrink-0 w-full sm:w-auto">
               {/* Employee tab - Visible to employee or higher clearances */}
               <button
                 onClick={() => {
@@ -369,7 +369,7 @@ export default function App() {
                   }
                   setCurrentTab("employee");
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 shrink-0 ${
                   currentTab === "employee"
                     ? "bg-[#00f2ff]/10 text-[#00f2ff] border-l-4 border-[#00f2ff]"
                     : "text-slate-400 hover:text-slate-200"
@@ -388,14 +388,14 @@ export default function App() {
                     }
                     setCurrentTab("auditor");
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 ${
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 shrink-0 ${
                     currentTab === "auditor"
                       ? "bg-[#ec4899]/10 text-[#ec4899] border-l-4 border-[#ec4899]"
                       : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <FileCheck className="w-3.5 h-3.5" /> Auditor Hub
-                </button>
+                }`}
+              >
+                <FileCheck className="w-3.5 h-3.5" /> Auditor Hub
+              </button>
               )}
 
               {/* Super Admin Tab - Visible ONLY to Super Admin clearance */}
@@ -408,7 +408,7 @@ export default function App() {
                     }
                     setCurrentTab("super_admin");
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 ${
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono uppercase transition-all duration-150 shrink-0 ${
                     currentTab === "super_admin"
                       ? "bg-[#10b981]/10 text-[#10b981] border-l-4 border-[#10b981]"
                       : "text-slate-400 hover:text-slate-200"
@@ -423,16 +423,16 @@ export default function App() {
           {/* Logout Trigger button */}
           <button
             onClick={handleLogout}
-            className="p-2 border border-white/15 hover:border-pink-600 hover:bg-pink-950/20 rounded-xl text-slate-300 hover:text-pink-400 transition-all font-mono text-xs uppercase flex items-center gap-1.5 px-3 py-1.5"
+            className="p-2 border border-white/15 hover:border-pink-600 hover:bg-pink-950/20 rounded-xl text-slate-300 hover:text-pink-400 transition-all font-mono text-xs uppercase flex items-center justify-center gap-1.5 px-3 py-1.5 sm:w-auto"
             title="Terminate biometric security link session"
           >
-            <LogOut className="w-4 h-4" /> <span className="hidden md:inline">Log out</span>
+            <LogOut className="w-4 h-4" /> <span>Log out</span>
           </button>
         </div>
       </header>
 
       {/* 3. Main Workspace Display Arena */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-1 sm:px-4 md:px-8 py-3 sm:py-6">
         {isDrafting ? (
           // Creating or editing travel claim form screen
           <ClaimForm

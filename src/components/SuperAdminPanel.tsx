@@ -445,8 +445,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
           )}
 
           {/* User Directory Table layout */}
-          <div className="overflow-x-auto rounded-xl border border-zinc-900">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto rounded-xl border border-zinc-900 scrollbar-thin">
+            <table className="w-full min-w-[650px] text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-zinc-950/80 text-zinc-500 font-mono">
                   <th className="p-3">Identity Name</th>
@@ -704,8 +704,8 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
           <Database className="w-4 h-4 text-[#00f2ff]" /> Overarching Transactional Database Controller
         </h3>
 
-        <div className="overflow-x-auto rounded-xl border border-zinc-900">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto rounded-xl border border-zinc-900 scrollbar-thin">
+          <table className="w-full min-w-[750px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-zinc-950/80 text-zinc-500 font-mono">
                 <th className="p-3">Claim Serial No</th>
