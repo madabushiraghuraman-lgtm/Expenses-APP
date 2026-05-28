@@ -115,7 +115,7 @@ async function startServer() {
   // API Endpoint triggered when Admin hits Approve or Reject
   app.patch("/api/claims/:claimId/review", async (req, res) => {
     const { claimId } = req.params;
-    const { action, adminComment, trip_title, amount, employeeEmail, employeeName } = req.body; // action: Approved or Rejected
+    const { action, adminComment, trip_title, amount, employeeEmail, employeeName, employeePhone } = req.body; // action: Approved or Rejected
 
     try {
       // 1. Fetch current settings from Firestore to check if "autoTriggerEmail" and "senderEmail" are Customized
@@ -218,11 +218,20 @@ async function startServer() {
         emailStatus = "disabled by Super Admin configuration";
       }
 
+      // 4. SMS trigger simulation from configured email ID
+      let smsStatus = "disabled by Super Admin configuration";
+      const targetPhone = employeePhone || "+919876543210";
+      if (autoTriggerEmail) {
+        console.log(`[SMS Gateway Triggered via ${senderEmail}]: Simulated SMS update successfully pushed to mobile ${targetPhone} on behalf of Auditor Admin. Header text: [Claim ${claimId} ${action}]`);
+        smsStatus = `simulated SMS sent to ${targetPhone} via gateway ${senderEmail}`;
+      }
+
       return res.status(200).json({
         success: true,
         message: `Claim ${claimId} reviewed successfully. Status set to ${action}.`,
         supabaseUpdated,
         emailStatus,
+        smsStatus,
         senderEmailUsed: senderEmail
       });
 

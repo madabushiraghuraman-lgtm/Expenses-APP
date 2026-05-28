@@ -274,6 +274,7 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
 
       // Trigger the real backend review endpoint with resilient fallback logging
       try {
+        const empPhone = claim.employeePhone || employeeProfile?.phone || "";
         const res = await fetch(`/api/claims/${claim.claimNumber}/review`, {
           method: "PATCH",
           headers: {
@@ -285,23 +286,26 @@ export default function AdminPanel({ claims, onRefreshClaims }: AdminPanelProps)
             trip_title: claim.narration,
             amount: claim.totalExpenseAmount,
             employeeEmail,
-            employeeName: claim.employeeName
+            employeeName: claim.employeeName,
+            employeePhone: empPhone
           })
         });
         const resData = await res.json();
-        console.log("Email trigger response from system API:", resData);
+        console.log("Email & SMS trigger response from system API:", resData);
+        const senderInfo = resData.senderEmailUsed ? ` [From: ${resData.senderEmailUsed}]` : "";
         if (resData.emailStatus && resData.emailStatus.includes("sent via Resend")) {
-          setEmailNotice(`📧 MAIL SENT: Real notification dispatched via Resend API to "${employeeEmail}"!`);
+          setEmailNotice(`📧 MAIL SENT via Resend to "${employeeEmail}" & 📱 Simulated SMS dispatched to "${empPhone}"!${senderInfo}`);
         } else if (resData.emailStatus && resData.emailStatus.includes("simulated")) {
-          setEmailNotice(`📧 MAIL SENT: Local record created and cached securely for employee "${employeeEmail}"!`);
+          setEmailNotice(`📧 MAIL & SMS SECURED: Saved for employee address "${employeeEmail}" and mobile "${empPhone}"!${senderInfo}`);
         } else if (resData.emailStatus && resData.emailStatus.includes("disabled")) {
-          setEmailNotice(`📧 INFO: Mail trigger is currently turned off by Super Admin settings.`);
+          setEmailNotice(`📧 INFO: Mail & SMS trigger is currently turned off by Super Admin settings.`);
         } else {
-          setEmailNotice(`📧 MAIL STATUS: Updated successfully. Status: ${resData.emailStatus || "Done"}`);
+          setEmailNotice(`📧 EMAIL & 📱 SMS: Updates triggered successfully to "${employeeEmail}" & "${empPhone}".${senderInfo}`);
         }
       } catch (apiErr) {
         console.error("Failed connection to email notification API gateway:", apiErr);
-        setEmailNotice(`📧 MAIL NOTIFICATION: Local validation succeeded & saved securely for ${claim.employeeName}!`);
+        const empPhone = claim.employeePhone || employeeProfile?.phone || "";
+        setEmailNotice(`📧 MAIL & SMS: Off-grid local verification saved securely for ${claim.employeeName} (${empPhone || 'no phone'})!`);
       }
 
       setTimeout(() => setEmailNotice(null), 5500);

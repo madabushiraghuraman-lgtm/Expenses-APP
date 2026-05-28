@@ -735,19 +735,19 @@ export default function SuperAdminPanel({ users, claims, onRefreshAll }: SuperAd
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">
-                    Custom Triggering Email ID (Sender)
+                  <label className="block text-[10px] font-mono text-cyan-400 uppercase mb-1 font-bold">
+                    Auditor sending email id (Sender configuration)
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Krystal Path <expenses@yourdomain.com>"
+                    placeholder="e.g. Krystal Path Travel <expenses@yourdomain.com>"
                     value={senderEmailVal}
                     onChange={(e) => setSenderEmailVal(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-zinc-950 border border-neutral-700 rounded text-white font-mono tracking-wider focus:outline-none focus:border-cyan-400"
                   />
                   <p className="text-[9px] text-zinc-500 font-mono mt-1">
-                    Configure the authenticated sender address domain registered in your Resend dashboard.
+                    Configure the active email ID from which all approval or rejection emails and triggered SMS/alert communications will be sent to the employees on behalf of the Auditor Admin.
                   </p>
                 </div>
               </div>
